@@ -38,18 +38,11 @@ export const Navbar = () => {
       }`}
     >
       <nav className="container mx-auto px-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <img
-              src={htsLogo}
-              alt="Hack The Spring 2026"
-              className="h-10 w-auto object-contain transition-all duration-300 group-hover:scale-110"
-              style={{
-                filter: 'drop-shadow(0 0 10px hsl(186 100% 50% / 0.5))',
-              }}
-            />
-          </div>
+        {/* Text Logo */}
+        <Link to="/" className="flex items-center group">
+          <span className="font-display text-lg sm:text-xl font-bold tracking-wider text-gradient-neon">
+            HTS 2026
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
