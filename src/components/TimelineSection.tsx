@@ -18,26 +18,41 @@ export const TimelineSection = () => {
 
   const [progress, setProgress] = useState(0);
   const [spaceshipPos, setSpaceshipPos] = useState({ x: 30, y: 150, angle: 90 });
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    const computeTargetProgress = () => {
+    let scrollAccumulator = 0;
+    const maxProgress = 1;
+    const scrollSpeed = 0.0008; // Adjust this to control animation speed
+
+    const handleWheel = (e: WheelEvent) => {
       if (!containerRef.current) return;
-
+      
       const rect = containerRef.current.getBoundingClientRect();
-      const vh = window.innerHeight;
-
-      // Start only when the section top reaches the viewport center.
-      const startAt = vh * 0.5;
-      const scrollable = Math.max(rect.height - vh, 1);
-
-      const raw = (startAt - rect.top) / scrollable;
-      targetProgressRef.current = Math.min(Math.max(raw, 0), 1);
+      const isInView = rect.top <= 0 && rect.bottom >= window.innerHeight;
+      
+      if (isInView) {
+        e.preventDefault();
+        
+        // Allow scrolling down to increase progress
+        if (e.deltaY > 0 && scrollAccumulator < maxProgress) {
+          scrollAccumulator += e.deltaY * scrollSpeed;
+        }
+        // Allow scrolling up to decrease progress
+        else if (e.deltaY < 0 && scrollAccumulator > 0) {
+          scrollAccumulator += e.deltaY * scrollSpeed;
+        }
+        
+        scrollAccumulator = Math.max(0, Math.min(maxProgress, scrollAccumulator));
+        targetProgressRef.current = scrollAccumulator;
+        setIsActive(true);
+      } else {
+        setIsActive(false);
+      }
     };
 
     const tick = () => {
-      computeTargetProgress();
-
-      // Smoothly ease progress toward target (prevents jitter)
+      // Smoothly ease progress toward target
       setProgress((p) => {
         const next = p + (targetProgressRef.current - p) * 0.12;
         return Math.abs(next - p) < 0.0005 ? targetProgressRef.current : next;
@@ -55,14 +70,12 @@ export const TimelineSection = () => {
       rafRef.current = requestAnimationFrame(tick);
     };
 
+    window.addEventListener('wheel', handleWheel, { passive: false });
     rafRef.current = requestAnimationFrame(tick);
 
-    const onResize = () => computeTargetProgress();
-    window.addEventListener('resize', onResize);
-
     return () => {
+      window.removeEventListener('wheel', handleWheel);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', onResize);
     };
   }, []);
 
@@ -76,8 +89,8 @@ export const TimelineSection = () => {
     'C 700 25, 740 85, 780 150';
 
   return (
-    <section ref={containerRef} className="relative" style={{ height: '280vh' }}>
-      <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden">
+    <section ref={containerRef} className="sticky top-0 min-h-screen z-10">
+      <div className="h-screen flex flex-col items-center justify-center overflow-hidden bg-background">
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-8">
             <span className="inline-block font-display text-sm tracking-[0.3em] text-primary mb-3">
@@ -200,12 +213,12 @@ export const TimelineSection = () => {
                   { left: '62%', top: '5%' },
                   { left: '96%', top: '75%' },
                 ];
-                const isActive = progress >= i / 4;
+                const isActiveEvent = progress >= i / 4;
                 return (
                   <div
                     key={event.title}
                     className="absolute transform -translate-x-1/2 text-center transition-all duration-300"
-                    style={{ left: positions[i].left, top: positions[i].top, opacity: isActive ? 1 : 0.4 }}
+                    style={{ left: positions[i].left, top: positions[i].top, opacity: isActiveEvent ? 1 : 0.4 }}
                   >
                     <p className="font-display text-xs md:text-sm text-primary font-bold">{event.date}</p>
                     <p className="text-[10px] md:text-xs text-foreground/80 whitespace-nowrap">{event.title}</p>
