@@ -129,7 +129,7 @@ export const TimelineSection = () => {
 
   return (
     <section ref={containerRef} className="relative" style={{ height: '200vh' }}>
-      <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden bg-background">
+      <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden">
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-8">
             <span className="inline-block font-display text-sm tracking-[0.3em] text-primary mb-3">
