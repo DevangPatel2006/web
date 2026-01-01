@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { StarField } from '@/components/StarField';
@@ -34,26 +35,72 @@ const values = [
 ];
 
 const About = () => {
+  const journeyRef = useRef<HTMLDivElement>(null);
+
+  // Smooth Scroll Animation Logic for Journey Section
+  useEffect(() => {
+    let requestRunning = false;
+
+    const handleScroll = () => {
+      if (!requestRunning) {
+        requestRunning = true;
+        requestAnimationFrame(updateJourneyProgress);
+      }
+    };
+
+    const updateJourneyProgress = () => {
+      if (!journeyRef.current) return;
+
+      const rect = journeyRef.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const startPoint = windowHeight * 0.8;
+      const endPoint = windowHeight * 0.2;
+      
+      const height = rect.height;
+      const scrolled = startPoint - rect.top;
+      const scrollableDistance = height + (startPoint - endPoint);
+      
+      const progress = Math.min(1, Math.max(0, scrolled / scrollableDistance));
+      
+      journeyRef.current.style.setProperty('--journey-progress', `${progress}`);
+      
+      const items = journeyRef.current.querySelectorAll('.journey-item');
+      const step = 1 / milestones.length;
+      const activeIndex = Math.floor(progress / step);
+
+      items.forEach((item, index) => {
+        if (index <= activeIndex) {
+          item.classList.add('is-active');
+        }
+      });
+
+      requestRunning = false;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    updateJourneyProgress();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <main className="relative min-h-screen bg-background overflow-x-hidden">
       <StarField />
       <Navbar />
 
       {/* Hero Section */}
-      {/* overflow-visible ensures the 600px image is never cut off even if the section is shorter */}
       <section className="relative pt-32 pb-20 overflow-visible">
-        {/* - top-0: Starts the image container exactly at the top of this section (where the header ends).
-           - h-[600px] w-[600px]: Keeps your exact original dimensions.
-           - backgroundPosition: 'top right': Ensures the image starts at the very top of its container.
-        */}
+        {/* Corrected Planet: Using screen blend and radial masking to match the starfield */}
         <div 
-          className="absolute right-0 top-15 w-[600px] h-[600px] opacity-30 pointer-events-none"
+          className="absolute right-[-5%] top-[-10%] w-[600px] h-[600px] pointer-events-none z-0 opacity-60"
           style={{
             backgroundImage: `url(${planetImage})`,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'top right',
-            filter: 'blur(2px)',
+            backgroundPosition: 'center',
+            mixBlendMode: 'screen',
+            WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 80%)',
+            maskImage: 'radial-gradient(circle, black 40%, transparent 80%)',
+            filter: 'brightness(1.1) contrast(1.1) drop-shadow(0 0 40px hsl(186, 100%, 50%, 0.15))',
           }}
         />
         
@@ -81,7 +128,7 @@ const About = () => {
             {values.map((value, index) => (
               <div
                 key={value.title}
-                className="glass-card p-8 text-center hover:scale-105 transition-transform duration-500"
+                className="glass-card p-8 text-center hover:scale-105 transition-all duration-500 hover:border-primary/50"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="w-16 h-16 mx-auto mb-6 rounded-xl bg-primary/20 flex items-center justify-center">
@@ -99,9 +146,9 @@ const About = () => {
         </div>
       </section>
 
-      {/* Journey Section */}
+      {/* Journey Section with World's Smoothest Animation */}
       <section className="relative py-20">
-        <div className="absolute inset-0 bg-gradient-radial opacity-30" />
+        <div className="absolute inset-0 bg-gradient-radial opacity-30 pointer-events-none" />
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16">
@@ -113,37 +160,51 @@ const About = () => {
             </h2>
           </div>
 
-          <div className="max-w-4xl mx-auto">
+          <div ref={journeyRef} className="max-w-4xl mx-auto relative" style={{ ['--journey-progress' as any]: 0 }}>
+            {/* Background Base Line */}
+            <div className="absolute left-0 md:left-1/2 top-0 bottom-0 w-0.5 bg-border/20 transform md:-translate-x-1/2" />
+            
+            {/* Animated Glowing Line */}
+            <div 
+              className="absolute left-0 md:left-1/2 top-0 w-0.5 origin-top transition-all duration-200 ease-out transform md:-translate-x-1/2 will-change-[height]"
+              style={{ 
+                height: `calc(var(--journey-progress) * 100%)`,
+                background: 'linear-gradient(to bottom, var(--primary), var(--accent), var(--secondary))',
+                boxShadow: '0 0 15px var(--primary)'
+              }} 
+            />
+
             <div className="relative">
-              {/* Timeline Line */}
-              <div className="absolute left-0 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-accent to-secondary transform md:-translate-x-1/2" />
-
-              {milestones.map((milestone, index) => (
-                <div
-                  key={milestone.year}
-                  className={`relative flex items-center gap-8 mb-12 ${
-                    index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'
-                  }`}
-                >
-                  <div className={`flex-1 ${index % 2 === 0 ? 'md:text-right' : 'md:text-left'} pl-8 md:pl-0`}>
-                    <div className="glass-card p-6 inline-block">
-                      <span className="font-display text-3xl font-bold text-gradient-neon">
-                        {milestone.year}
-                      </span>
-                      <h3 className="font-display text-xl tracking-wider text-foreground mt-2">
-                        {milestone.title}
-                      </h3>
-                      <p className="text-muted-foreground text-sm mt-2">
-                        {milestone.description}
-                      </p>
+              {milestones.map((milestone, index) => {
+                const isLeft = index % 2 === 0;
+                return (
+                  <div
+                    key={milestone.year}
+                    className={`journey-item relative flex items-center gap-8 mb-16 group ${
+                      isLeft ? 'md:flex-row' : 'md:flex-row-reverse'
+                    }`}
+                  >
+                    <div className={`flex-1 ${isLeft ? 'md:text-right' : 'md:text-left'} pl-8 md:pl-0`}>
+                      <div className="glass-card p-6 inline-block transition-all duration-700 opacity-40 scale-95 group-[.is-active]:opacity-100 group-[.is-active]:scale-100 group-[.is-active]:border-primary/50">
+                        <span className="font-display text-3xl font-bold text-gradient-neon">
+                          {milestone.year}
+                        </span>
+                        <h3 className="font-display text-xl tracking-wider text-foreground mt-2">
+                          {milestone.title}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mt-2">
+                          {milestone.description}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Timeline Node */}
+                    <div className="absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-4 h-4 rounded-full bg-border transition-all duration-500 group-[.is-active]:bg-primary group-[.is-active]:shadow-glow-cyan group-[.is-active]:scale-125 z-10" />
+
+                    <div className="hidden md:block flex-1" />
                   </div>
-
-                  <div className="absolute left-0 md:left-1/2 transform md:-translate-x-1/2 w-4 h-4 rounded-full bg-primary shadow-glow-cyan" />
-
-                  <div className="hidden md:block flex-1" />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -152,7 +213,7 @@ const About = () => {
       {/* College Info */}
       <section className="relative py-20">
         <div className="container mx-auto px-4">
-          <div className="glass-card p-12 max-w-4xl mx-auto text-center">
+          <div className="glass-card p-12 max-w-4xl mx-auto text-center border-primary/20">
             <h2 className="font-display text-3xl md:text-4xl font-bold tracking-wider mb-6">
               GOVERNMENT ENGINEERING COLLEGE
             </h2>
