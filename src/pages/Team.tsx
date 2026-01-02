@@ -58,27 +58,33 @@ const teamCategories = [
 ];
 
 const TeamMemberCard = ({ member }: { member: any }) => (
-  <div className="group relative px-2">
-    <div className="relative glass-card p-6 text-center hover:scale-105 transition-all duration-500 overflow-hidden">
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+  <div className="group relative px-2 overflow-visible">
+    <div 
+      className="relative glass-card p-6 text-center transition-all duration-500 overflow-visible"
+      style={{ aspectRatio: '1080 / 1350' }}
+    >
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 animate-shimmer" />
       </div>
 
-      <div className="relative z-10 w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border-2 border-primary/50 group-hover:border-primary group-hover:shadow-glow-cyan transition-all duration-500">
+      {/* Glow effect on hover - outside the card to prevent cropping */}
+      <div className="absolute -inset-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-primary/30 via-accent/30 to-primary/30 blur-md -z-10" />
+
+      <div className="relative z-10 w-24 h-24 mx-auto mb-6 mt-4 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border-2 border-primary/50 group-hover:border-primary group-hover:shadow-glow-cyan transition-all duration-500">
         <span className="font-display text-3xl font-bold text-primary">
           {member.name.split(' ').map((n: string) => n[0]).join('')}
         </span>
       </div>
 
-      <div className="relative z-10">
-        <h3 className="font-display text-lg font-bold tracking-wider text-foreground mb-1">
+      <div className="relative z-10 flex flex-col items-center justify-center flex-grow">
+        <h3 className="font-display text-lg font-bold tracking-wider text-foreground mb-2">
           {member.name}
         </h3>
-        <p className="text-primary text-sm font-display tracking-wider mb-4">
+        <p className="text-primary text-sm font-display tracking-wider mb-6">
           {member.role}
         </p>
 
-        <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-auto">
           <a href="#" className="p-2 rounded-lg bg-muted/50 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all">
             <Linkedin size={16} />
           </a>
