@@ -58,29 +58,29 @@ const teamCategories = [
 ];
 
 const TeamMemberCard = ({ member }: { member: any }) => (
-  <div className="group relative px-2 overflow-visible">
+  <div className="group relative px-3 py-4 overflow-visible">
+    {/* Glow effect on hover - outside the card to prevent cropping */}
+    <div className="absolute inset-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-primary/40 via-accent/40 to-primary/40 blur-xl -z-10" />
+    
     <div 
-      className="relative glass-card p-6 text-center transition-all duration-500 overflow-visible"
-      style={{ aspectRatio: '1080 / 1350' }}
+      className="relative glass-card p-8 text-center transition-all duration-500 flex flex-col"
+      style={{ width: '270px', height: '337px' }}
     >
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 animate-shimmer" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-accent/10 to-primary/10" />
       </div>
 
-      {/* Glow effect on hover - outside the card to prevent cropping */}
-      <div className="absolute -inset-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-primary/30 via-accent/30 to-primary/30 blur-md -z-10" />
-
-      <div className="relative z-10 w-24 h-24 mx-auto mb-6 mt-4 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border-2 border-primary/50 group-hover:border-primary group-hover:shadow-glow-cyan transition-all duration-500">
-        <span className="font-display text-3xl font-bold text-primary">
+      <div className="relative z-10 w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border-2 border-primary/50 group-hover:border-primary group-hover:shadow-glow-cyan transition-all duration-500 shrink-0">
+        <span className="font-display text-2xl font-bold text-primary">
           {member.name.split(' ').map((n: string) => n[0]).join('')}
         </span>
       </div>
 
       <div className="relative z-10 flex flex-col items-center justify-center flex-grow">
-        <h3 className="font-display text-lg font-bold tracking-wider text-foreground mb-2">
+        <h3 className="font-display text-base font-bold tracking-wider text-foreground mb-2">
           {member.name}
         </h3>
-        <p className="text-primary text-sm font-display tracking-wider mb-6">
+        <p className="text-primary text-sm font-display tracking-wider mb-4">
           {member.role}
         </p>
 
@@ -142,7 +142,7 @@ const Team = () => {
                 >
                   <CarouselContent>
                     {category.members.map((member, index) => (
-                      <CarouselItem key={index} className="basis-full md:basis-1/2">
+                      <CarouselItem key={index} className="basis-full sm:basis-1/2 lg:basis-1/3 flex justify-center">
                         <TeamMemberCard member={member} />
                       </CarouselItem>
                     ))}
