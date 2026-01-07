@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Rocket, UserPlus, ClipboardCheck, Trophy, PartyPopper } from 'lucide-react';
 
 const timelineEvents = [
@@ -12,68 +12,132 @@ const timelineEvents = [
 export const TimelineSection = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const progressLineRef = useRef<HTMLDivElement>(null);
+  const nodesRef = useRef<(HTMLDivElement | null)[]>([]);
+  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const endGlowRef = useRef<HTMLDivElement>(null);
+  
+  // Store progress without causing re-renders
+  const progressRef = useRef(0);
+  const isCompletedRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
+
+  const updateVisuals = useCallback((progress: number) => {
+    // Update progress line with GPU-accelerated transform
+    if (progressLineRef.current) {
+      progressLineRef.current.style.transform = `scaleY(${progress})`;
+    }
+
+    // Calculate active index
+    const step = 1 / timelineEvents.length;
+    const activeIndex = Math.floor(progress / step);
+
+    // Update nodes and cards
+    timelineEvents.forEach((_, index) => {
+      const node = nodesRef.current[index];
+      const card = cardsRef.current[index];
+      const isActive = index <= activeIndex;
+      const isCurrentlyReached = index === activeIndex;
+
+      if (node) {
+        const innerNode = node.querySelector('.node-inner') as HTMLElement;
+        const glowRing = node.querySelector('.glow-ring') as HTMLElement;
+        
+        if (innerNode) {
+          innerNode.style.transform = isCurrentlyReached ? 'scale(1.25)' : 'scale(1)';
+          innerNode.style.background = isActive 
+            ? 'linear-gradient(135deg, hsl(186 100% 50%), hsl(300 80% 60%))'
+            : 'hsl(252 40% 20%)';
+          innerNode.style.boxShadow = isActive 
+            ? '0 0 20px hsl(186 100% 50% / 0.8), 0 0 40px hsl(186 100% 50% / 0.4)'
+            : 'none';
+          innerNode.style.borderColor = isActive ? 'hsl(186 100% 70%)' : 'hsl(252 40% 30%)';
+        }
+        
+        if (glowRing) {
+          glowRing.style.opacity = isActive ? '1' : '0';
+        }
+      }
+
+      if (card) {
+        card.style.transform = isActive ? 'scale(1)' : 'scale(0.95)';
+        card.style.opacity = isActive ? '1' : '0.4';
+        card.style.boxShadow = isActive 
+          ? '0 0 30px hsl(186 100% 50% / 0.3), 0 0 60px hsl(186 100% 50% / 0.1)' 
+          : 'none';
+        card.style.borderColor = isActive ? 'hsl(186 100% 50% / 0.5)' : '';
+      }
+    });
+
+    // Update end glow
+    if (endGlowRef.current) {
+      const showEnd = progress >= 0.95;
+      endGlowRef.current.style.opacity = showEnd ? '1' : '0';
+      endGlowRef.current.style.transform = `translateX(-50%) scale(${showEnd ? 1 : 0.5})`;
+    }
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
-      // If timeline is already completed, keep it at 100%
-      if (isCompleted) return;
-      
-      if (!sectionRef.current || !timelineRef.current) return;
+      // Cancel any pending frame
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
 
-      const timelineRect = timelineRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
+      // Schedule update on next frame for smooth 60fps
+      rafRef.current = requestAnimationFrame(() => {
+        if (isCompletedRef.current) return;
+        if (!sectionRef.current || !timelineRef.current) return;
 
-      // Calculate progress based on how much of the timeline is visible
-      const timelineTop = timelineRect.top;
-      const timelineHeight = timelineRect.height;
-      
-      // Start animation when timeline enters viewport from bottom
-      const startPoint = windowHeight * 0.8;
-      const endPoint = windowHeight * 0.2;
-      
-      if (timelineTop > startPoint) {
-        // Only reset to 0 if we haven't started yet
-        if (progress === 0) {
-          setProgress(0);
-        }
-      } else if (timelineTop + timelineHeight < endPoint) {
-        // Timeline completed - lock it at 100%
-        setProgress(1);
-        setIsCompleted(true);
-      } else {
-        // Calculate progress as timeline scrolls through viewport
-        const scrollableDistance = timelineHeight + (startPoint - endPoint);
-        const scrolled = startPoint - timelineTop;
-        const newProgress = Math.min(1, Math.max(0, scrolled / scrollableDistance));
+        const timelineRect = timelineRef.current.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const timelineTop = timelineRect.top;
+        const timelineHeight = timelineRect.height;
         
-        // Only update if new progress is higher (one-way animation)
-        if (newProgress > progress) {
-          setProgress(newProgress);
+        const startPoint = windowHeight * 0.8;
+        const endPoint = windowHeight * 0.2;
+        
+        let newProgress = progressRef.current;
+
+        if (timelineTop > startPoint) {
+          if (progressRef.current === 0) {
+            newProgress = 0;
+          }
+        } else if (timelineTop + timelineHeight < endPoint) {
+          newProgress = 1;
+          isCompletedRef.current = true;
+        } else {
+          const scrollableDistance = timelineHeight + (startPoint - endPoint);
+          const scrolled = startPoint - timelineTop;
+          const calculatedProgress = Math.min(1, Math.max(0, scrolled / scrollableDistance));
           
-          // Mark as completed when reaching 100%
-          if (newProgress >= 0.99) {
-            setIsCompleted(true);
-            setProgress(1);
+          if (calculatedProgress > progressRef.current) {
+            newProgress = calculatedProgress;
+            if (newProgress >= 0.99) {
+              newProgress = 1;
+              isCompletedRef.current = true;
+            }
           }
         }
-      }
+
+        // Only update if progress changed
+        if (newProgress !== progressRef.current) {
+          progressRef.current = newProgress;
+          updateVisuals(newProgress);
+        }
+      });
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Initial call
+    handleScroll();
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isCompleted, progress]);
-
-  // Calculate which milestones are active based on progress
-  const getActiveIndex = () => {
-    const step = 1 / timelineEvents.length;
-    return Math.floor(progress / step);
-  };
-
-  const activeIndex = getActiveIndex();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [updateVisuals]);
 
   return (
     <section ref={sectionRef} className="relative py-20">
@@ -96,13 +160,15 @@ export const TimelineSection = () => {
           {/* Background line (dim) */}
           <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-0.5 md:-translate-x-1/2 bg-border/30" />
           
-          {/* Animated glowing line that grows with scroll */}
+          {/* Animated glowing line - GPU accelerated with transform */}
           <div 
-            className="absolute left-6 md:left-1/2 top-0 w-0.5 md:-translate-x-1/2 origin-top transition-all duration-100"
+            ref={progressLineRef}
+            className="absolute left-6 md:left-1/2 top-0 bottom-0 w-0.5 md:-translate-x-1/2 origin-top"
             style={{
-              height: `${progress * 100}%`,
+              transform: 'scaleY(0)',
               background: 'linear-gradient(180deg, hsl(186 100% 50%), hsl(280 70% 50%), hsl(300 100% 50%))',
               boxShadow: '0 0 15px hsl(186 100% 50% / 0.6), 0 0 30px hsl(186 100% 50% / 0.3)',
+              willChange: 'transform',
             }}
           />
 
@@ -110,8 +176,6 @@ export const TimelineSection = () => {
           <div className="space-y-16">
             {timelineEvents.map((event, index) => {
               const isLeft = index % 2 === 0;
-              const isActive = index <= activeIndex;
-              const isCurrentlyReached = index === activeIndex;
               const Icon = event.icon;
               
               return (
@@ -128,86 +192,64 @@ export const TimelineSection = () => {
                     }`}
                   >
                     <div 
-                      className={`glass-card p-6 inline-block transition-all duration-500 ${
-                        isActive ? 'scale-100 opacity-100' : 'scale-95 opacity-40'
-                      }`}
+                      ref={el => cardsRef.current[index] = el}
+                      className="glass-card p-6 inline-block"
                       style={{
-                        boxShadow: isActive 
-                          ? '0 0 30px hsl(186 100% 50% / 0.3), 0 0 60px hsl(186 100% 50% / 0.1)' 
-                          : 'none',
-                        borderColor: isActive ? 'hsl(186 100% 50% / 0.5)' : undefined,
+                        transform: 'scale(0.95)',
+                        opacity: 0.4,
+                        willChange: 'transform, opacity',
+                        transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease-out, box-shadow 0.4s ease-out, border-color 0.4s ease-out',
                       }}
                     >
                       {/* Date Badge */}
                       <span 
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-display tracking-wider mb-3 transition-all duration-500`}
+                        className="inline-block px-3 py-1 rounded-full text-xs font-display tracking-wider mb-3"
                         style={{
-                          background: isActive 
-                            ? 'linear-gradient(135deg, hsl(186 100% 50% / 0.3), hsl(300 100% 50% / 0.3))'
-                            : 'hsl(252 40% 15% / 0.5)',
-                          border: `1px solid ${isActive ? 'hsl(186 100% 50% / 0.5)' : 'hsl(252 40% 20% / 0.5)'}`,
+                          background: 'linear-gradient(135deg, hsl(186 100% 50% / 0.3), hsl(300 100% 50% / 0.3))',
+                          border: '1px solid hsl(186 100% 50% / 0.5)',
                         }}
                       >
                         {event.date}
                       </span>
                       
-                      <h3 
-                        className={`font-display text-xl font-bold tracking-wider mb-2 transition-all duration-500 ${
-                          isActive ? 'text-foreground' : 'text-muted-foreground'
-                        }`}
-                        style={{
-                          textShadow: isCurrentlyReached 
-                            ? '0 0 20px hsl(186 100% 50% / 0.8)' 
-                            : 'none',
-                        }}
-                      >
+                      <h3 className="font-display text-xl font-bold tracking-wider mb-2 text-foreground">
                         {event.title}
                       </h3>
-                      <p className={`text-sm transition-all duration-500 ${
-                        isActive ? 'text-muted-foreground' : 'text-muted-foreground/50'
-                      }`}>
+                      <p className="text-sm text-muted-foreground">
                         {event.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Center Node with Glow */}
-                  <div className="absolute left-6 md:left-1/2 transform -translate-x-1/2 z-10">
-                    {/* Outer glow ring - animated when active */}
+                  <div 
+                    ref={el => nodesRef.current[index] = el}
+                    className="absolute left-6 md:left-1/2 transform -translate-x-1/2 z-10"
+                  >
+                    {/* Outer glow ring */}
                     <div 
-                      className={`absolute w-14 h-14 rounded-full transition-all duration-500 ${
-                        isCurrentlyReached ? 'animate-pulse' : ''
-                      }`}
+                      className="glow-ring absolute w-14 h-14 rounded-full"
                       style={{
-                        background: isActive 
-                          ? 'radial-gradient(circle, hsl(186 100% 50% / 0.4) 0%, transparent 70%)'
-                          : 'transparent',
+                        background: 'radial-gradient(circle, hsl(186 100% 50% / 0.4) 0%, transparent 70%)',
                         left: '50%',
                         top: '50%',
                         transform: 'translate(-50%, -50%)',
+                        opacity: 0,
+                        willChange: 'opacity',
+                        transition: 'opacity 0.4s ease-out',
                       }}
                     />
                     {/* Node circle with icon */}
                     <div 
-                      className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                        isCurrentlyReached ? 'scale-125' : 'scale-100'
-                      }`}
+                      className="node-inner relative w-10 h-10 rounded-full flex items-center justify-center"
                       style={{
-                        background: isActive 
-                          ? 'linear-gradient(135deg, hsl(186 100% 50%), hsl(300 80% 60%))'
-                          : 'hsl(252 40% 20%)',
-                        boxShadow: isActive 
-                          ? '0 0 20px hsl(186 100% 50% / 0.8), 0 0 40px hsl(186 100% 50% / 0.4)'
-                          : 'none',
-                        border: `2px solid ${isActive ? 'hsl(186 100% 70%)' : 'hsl(252 40% 30%)'}`,
+                        background: 'hsl(252 40% 20%)',
+                        border: '2px solid hsl(252 40% 30%)',
+                        willChange: 'transform, background, box-shadow',
+                        transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease-out, box-shadow 0.4s ease-out, border-color 0.4s ease-out',
                       }}
                     >
-                      <Icon 
-                        size={18} 
-                        className={`transition-colors duration-500 ${
-                          isActive ? 'text-background' : 'text-muted-foreground'
-                        }`}
-                      />
+                      <Icon size={18} className="text-muted-foreground" />
                     </div>
                   </div>
 
@@ -220,9 +262,14 @@ export const TimelineSection = () => {
 
           {/* End glow */}
           <div 
-            className={`absolute left-6 md:left-1/2 -bottom-4 transform -translate-x-1/2 transition-all duration-500 ${
-              progress >= 0.95 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
-            }`}
+            ref={endGlowRef}
+            className="absolute left-6 md:left-1/2 -bottom-4"
+            style={{
+              transform: 'translateX(-50%) scale(0.5)',
+              opacity: 0,
+              willChange: 'transform, opacity',
+              transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease-out',
+            }}
           >
             <div 
               className="w-8 h-8 rounded-full animate-pulse"
